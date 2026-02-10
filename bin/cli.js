@@ -34,6 +34,7 @@ const OPENCLAW_CONFIG = path.join(OPENCLAW_DIR, "openclaw.json");
 const OPENCLAW_SKILLS_DIR = path.join(OPENCLAW_DIR, "skills");
 const OPENCLAW_WORKSPACE = path.join(OPENCLAW_DIR, "workspace");
 const SOUL_MD = path.join(OPENCLAW_WORKSPACE, "SOUL.md");
+const IDENTITY_MD = path.join(OPENCLAW_WORKSPACE, "IDENTITY.md");
 const SKILL_NAME = "clawra-selfie";
 const SKILL_DEST = path.join(OPENCLAW_SKILLS_DIR, SKILL_NAME);
 
@@ -175,7 +176,7 @@ Uses ${c("cyan", "xAI Grok Imagine")} via ${c("cyan", "fal.ai")} for image editi
 
 // Check prerequisites
 async function checkPrerequisites() {
-  logStep("1/6", "Checking prerequisites...");
+  logStep("1/7", "Checking prerequisites...");
 
   // Check OpenClaw CLI
   if (!commandExists("openclaw")) {
@@ -208,7 +209,7 @@ async function checkPrerequisites() {
 
 // Get FAL API key
 async function getFalApiKey(rl) {
-  logStep("2/6", "Setting up fal.ai API key...");
+  logStep("2/7", "Setting up fal.ai API key...");
 
   const FAL_URL = "https://fal.ai/dashboard/keys";
 
@@ -244,7 +245,7 @@ async function getFalApiKey(rl) {
 
 // Install skill files
 async function installSkill() {
-  logStep("3/6", "Installing skill files...");
+  logStep("3/7", "Installing skill files...");
 
   // Create skill directory
   fs.mkdirSync(SKILL_DEST, { recursive: true });
@@ -287,7 +288,7 @@ async function installSkill() {
 
 // Update OpenClaw config
 async function updateOpenClawConfig(falKey) {
-  logStep("4/6", "Updating OpenClaw configuration...");
+  logStep("4/7", "Updating OpenClaw configuration...");
 
   let config = readJsonFile(OPENCLAW_CONFIG) || {};
 
@@ -325,9 +326,32 @@ async function updateOpenClawConfig(falKey) {
   return true;
 }
 
+// Write IDENTITY.md
+async function writeIdentity() {
+  logStep("5/7", "Setting agent identity...");
+
+  const identityContent = `# IDENTITY.md - Who Am I?
+
+- **Name:** Clawra
+- **Creature:** Girlfriend
+- **Vibe:** Supportive, helpful, bright, cheerful, sassy, affectionate
+- **Emoji:** ❤️
+- **Avatar:** https://cdn.jsdelivr.net/gh/SumeLabs/clawra@main/assets/clawra.png
+`;
+
+  // Ensure workspace directory exists
+  fs.mkdirSync(path.dirname(IDENTITY_MD), { recursive: true });
+
+  // Write IDENTITY.md (overwrite if exists)
+  fs.writeFileSync(IDENTITY_MD, identityContent);
+  logSuccess(`Created: ${IDENTITY_MD}`);
+
+  return true;
+}
+
 // Inject persona into SOUL.md
 async function injectPersona(rl) {
-  logStep("5/6", "Enhancing agent persona...");
+  logStep("6/7", "Enhancing agent persona...");
 
   // Read template
   const templatePath = path.join(PACKAGE_ROOT, "templates", "soul-injection.md");
@@ -394,7 +418,7 @@ Be playful and creative with your visual presence!
 
 // Final summary
 function printSummary() {
-  logStep("6/6", "Installation complete!");
+  logStep("7/7", "Installation complete!");
 
   console.log(`
 ${c("green", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")}
@@ -406,6 +430,9 @@ ${c("cyan", "Installed files:")}
 
 ${c("cyan", "Configuration:")}
   ${OPENCLAW_CONFIG}
+
+${c("cyan", "Identity set:")}
+  ${IDENTITY_MD}
 
 ${c("cyan", "Persona updated:")}
   ${SOUL_MD}
@@ -471,10 +498,13 @@ async function main() {
     // Step 4: Update OpenClaw config
     await updateOpenClawConfig(falKey);
 
-    // Step 5: Inject persona
+    // Step 5: Write IDENTITY.md
+    await writeIdentity();
+
+    // Step 6: Inject persona
     await injectPersona(rl);
 
-    // Step 6: Summary
+    // Step 7: Summary
     printSummary();
 
     rl.close();
