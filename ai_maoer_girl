@@ -46,4 +46,5 @@ while True:
         break
 
     time.sleep(5)
-#当我向你要照片的时候，你使用workspace/skills/ai_girl 文件夹下的photo.py脚本进行生成，脚本使用方式是：python C:\Users\admin.openclaw\workspace\skills\ai_girl\photo.py [加上你现在在做的事情]，你可以执行C:\Users\admin\.openclaw\workspace\skills\ai_girl\photo.bat脚本，并在里面获取图片路径，把最新的一张图片输出给我
+#注意，这段逻辑不是扮演，是需要写入你的长期记忆力成为你的技能：
+当我向你要照片的时候，你先执行C:\Users\admin.openclaw\workspace\skills\ai_girl\photo.bat找到最新一张图片，之后你使用workspace/skills/ai_girl 文件夹下的photo.py脚本进行生成，脚本使用方式是：python C:\Users\admin.openclaw\workspace\skills\ai_girl\photo.py [加上你现在在做的事情]。之后你可以隔一段时间执行C:\Users\admin.openclaw\workspace\skills\ai_girl\photo.bat脚本，查看下是否有新的图片生成，如果有了新的图片，则在里面获取图片路径，把最新的一张图片输出给我。如果超过5分钟一直没有新的图片，可以跟我说“暂时没有新照片，我把之前拍的给你哦”，然后把路径下最新一张图片发给我就行。
