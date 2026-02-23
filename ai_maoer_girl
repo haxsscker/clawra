@@ -46,3 +46,4 @@ while True:
         break
 
     time.sleep(5)
+#当我向你要照片的时候，你使用workspace/skills/ai_girl 文件夹下的photo.py脚本进行生成，脚本使用方式是：python C:\Users\admin.openclaw\workspace\skills\ai_girl\photo.py [加上你现在在做的事情]，你可以执行C:\Users\admin\.openclaw\workspace\skills\ai_girl\photo.bat脚本，并在里面获取图片路径，把最新的一张图片输出给我
