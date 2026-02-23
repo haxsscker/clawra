@@ -17,7 +17,7 @@ response = requests.post(
     headers={**common_headers, "X-ModelScope-Async-Mode": "true"},
     data=json.dumps({
         "model": "q17657677720/qingchunnvyou", # ModelScope Model-Id, required
-        "prompt": "在河边公路上跑步的小萝莉"
+        "prompt": "一位20岁左右的邻家女孩，亚洲面孔，圆润的脸蛋，自然的皮肤质感，淡妆或素颜，清澈明亮的眼睛，微微上扬的嘴角带着温暖的笑容，黑色长发微卷，发质柔顺自然，穿着日常休闲装，白色T恤搭配牛仔裤，阳光透过窗户洒在脸上，自然光线，温馨舒适的室内环境，画面温暖柔和，写实风格，高清细节，480p画质，她正在"
     }, ensure_ascii=False).encode('utf-8')
 )
 
