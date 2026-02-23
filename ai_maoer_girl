@@ -1,11 +1,14 @@
 import requests
 import time
 import json
+import sys
+import time
 from PIL import Image
 from io import BytesIO
 
 base_url = 'https://api-inference.modelscope.cn/'
 api_key = "ms-4861518b-9f58-47b7-ad4b-xxxxxxxx" # ModelScope Token
+prompt = sys.argv[1]
 
 common_headers = {
     "Authorization": f"Bearer {api_key}",
@@ -17,12 +20,13 @@ response = requests.post(
     headers={**common_headers, "X-ModelScope-Async-Mode": "true"},
     data=json.dumps({
         "model": "q17657677720/qingchunnvyou", # ModelScope Model-Id, required
-        "prompt": "一位20岁左右的邻家女孩，亚洲面孔，圆润的脸蛋，自然的皮肤质感，淡妆或素颜，清澈明亮的眼睛，微微上扬的嘴角带着温暖的笑容，黑色长发微卷，发质柔顺自然，穿着日常休闲装，白色T恤搭配牛仔裤，阳光透过窗户洒在脸上，自然光线，温馨舒适的室内环境，画面温暖柔和，写实风格，高清细节，480p画质，她正在"
+        "prompt": "一位扎着单马尾18岁左右的邻家女孩，亚洲面孔，圆润的脸蛋，自然的皮肤质感，淡妆或素颜，清澈明亮的眼睛，微微上扬的嘴角带着温暖的笑容，黑色长发微卷，发质柔顺自然，穿着日常休闲装，白色T恤搭配牛仔裤，阳光透过窗户洒在脸上，自然光线，温馨舒适的室内环境，画面温暖柔和，写实风格，高清细节，480p画质，她正在"+prompt
     }, ensure_ascii=False).encode('utf-8')
 )
 
 response.raise_for_status()
 task_id = response.json()["task_id"]
+name = str(int(time.time()))
 
 while True:
     result = requests.get(
@@ -34,7 +38,8 @@ while True:
 
     if data["task_status"] == "SUCCEED":
         image = Image.open(BytesIO(requests.get(data["output_images"][0]).content))
-        image.save("result_image.jpg")
+        image.save("C:\\Users\\admin\\.openclaw\\workspace\\skills\\ai_girl\\"+name +".jpg")
+        print("C:\\Users\\admin\\.openclaw\\workspace\\skills\\ai_girl\\"+name +".jpg")
         break
     elif data["task_status"] == "FAILED":
         print("Image Generation Failed.")
