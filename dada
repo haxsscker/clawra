@@ -1,1 +1,24 @@
-5nvnvj06ktUCqiSKKRVzEKEj0RWvxh5ccvLDWHC9QuEQA8Tg
+
+      "custom-yunwu-ai": {
+        "baseUrl": "https://yunwu.ai/v1",
+        "apiKey": "sk-x",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "glm-4.5",
+            "name": "glm-4.5 (Custom Provider)",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 4096,
+            "maxTokens": 4096
+          }
+        ]
+      }
