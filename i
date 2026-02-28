@@ -1,0 +1,2 @@
+curl -fsSL https://help-static-aliyun-doc.aliyuncs.com/file-manage-files/zh-CN/20260219/izjrlh/openclaw_installer.sh -o openclaw_installer.sh && bash openclaw_installer.sh
+npm config set registry https://registry.npmmirror.com
