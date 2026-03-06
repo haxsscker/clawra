@@ -1,3 +1,27 @@
 aaa
-a9qqweqweqweqweqweqweqwecli
-http://47.253.215.98:10214/08a5e917?token=b8b4570a5fdc5c8a56037609ad0
+from huggingface_hub import snapshot_download
+model_path = snapshot_download(
+    repo_id="Qwen/Qwen3.5-397B-A17B-FP8",
+    local_dir="./Qwen/Qwen3.5-397B-A17B-FP8",
+    local_dir_use_symlinks=False
+)
+ 
+model_path = snapshot_download(
+    repo_id="Qwen/Qwen3.5-397B-A17B",
+    local_dir="./Qwen/Qwen3.5-397B-A17B",
+    local_dir_use_symlinks=False
+)Ey之江希望你今晚过得愉快。如果您有时间，请将以下下载内容上传到audittools:
+
+下载次数:
+从huggingface_hub导入snapshot_download
+model_path = snapshot_download (
+repo_id = "Qwen/Qwen3.5-397B-A17B-FP8",
+local_dir = "./Qwen/Qwen3.5-397B-A17B-FP8",
+local_dir_use_symlinks = False
+)
+
+model_path = snapshot_download (
+repo_id = "Qwen/Qwen3.5-397B-A17B",
+local_dir = "./Qwen/Qwen3.5-397B-A17B",
+local_dir_use_symlinks = False
+)
