@@ -11,3 +11,4 @@ model_path = snapshot_download(
     local_dir="./Qwen/Qwen3.5-397B-A17B",
     local_dir_use_symlinks=False
 )
+https://open.feishu.cn/open-apis/bot/v2/hook/e04d427b-1163-45c9-8d6b-a5559b013e82
