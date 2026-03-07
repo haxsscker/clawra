@@ -1,24 +1,143 @@
-aaa
-from huggingface_hub import snapshot_download
-model_path = snapshot_download(
-    repo_id="Qwen/Qwen3.5-397B-A17B-FP8",
-    local_dir="./Qwen/Qwen3.5-397B-A17B-FP8",
-    local_dir_use_symlinks=False
-)
- 
-model_path = snapshot_download(
-    repo_id="Qwen/Qwen3.5-397B-A17B",
-    local_dir="./Qwen/Qwen3.5-397B-A17B",
-    local_dir_use_symlinks=False
-)
-https://open.feishu.cn/open-apis/bot/v2/hook/e04d427b-1163-45c9-8d6b-a5559b013e82
+import json
+import os
+import time
+import urllib.request
+from typing import Dict, List, Optional, Any
 
-curl -X POST https://open.feishu.cn/open-apis/bot/v2/hook/e04d427b-1163-45c9-8d6b-a5559b013e82 \
-  -H "Content-Type: application/json" \
-  -d '{
-    "msg_type": "text",
-    "content": {
-      "text": "测试消息"
-    }
-  }'
+
+class FeishuNotifier:
+    def __init__(self, webhook: Optional[str]) -> None:
+        self.webhook = webhook
+        self.last_push_ts = 0
+        self.push_interval = 60  # 推送间隔（秒）
+
+    def send_text(self, text: str) -> bool:
+        if not self.webhook:
+            print("Webhook 未设置")
+            return False
+        
+        data = {
+            "msg_type": "text",
+            "content": {"text": text},
+        }
+        body = json.dumps(data).encode("utf-8")
+        
+        req = urllib.request.Request(
+            self.webhook,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                response_data = resp.read()
+                print(f"飞书响应状态码：{resp.status}")
+                print(f"飞书响应内容：{response_data}")
+                
+                # 检查响应内容
+                try:
+                    resp_json = json.loads(response_data)
+                    if resp_json.get("code") == 0 or resp_json.get("StatusCode") == 0:
+                        return True
+                    else:
+                        print(f"飞书返回错误：{resp_json}")
+                        return False
+                except:
+                    return resp.status == 200
+                    
+        except urllib.error.HTTPError as e:
+            print(f"HTTP 错误：{e.code}")
+            print(f"错误信息：{e.reason}")
+            print(f"响应头：{e.headers}")
+            
+            # 读取错误响应体
+            try:
+                error_body = e.read().decode('utf-8')
+                print(f"错误响应体：{error_body}")
+            except:
+                pass
+            
+            return False
+        except Exception as e:
+            print(f"发送失败：{e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+    def send_market_report(self, futures_quotes: Dict[str, Dict], stocks_quotes: Dict[str, Dict]) -> bool:
+        """发送市场行情报告到飞书"""
+        current_ts = int(time.time())
+        
+        # 检查是否到了推送时间
+        if current_ts - self.last_push_ts < self.push_interval:
+            print(f"距离上次推送不足 {self.push_interval} 秒，跳过")
+            return False
+        
+        self.last_push_ts = current_ts
+        
+        # 构建推送消息
+        lines = []
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_ts))
+        lines.append(f"📊 行情监控播报 ({current_time})")
+        lines.append("")
+        
+        # 股票数据
+        if stocks_quotes:
+            lines.append("【A 股行情】")
+            for symbol, data in sorted(stocks_quotes.items(), key=lambda x: x[0]):
+                name = data.get("name", symbol)
+                price = data.get("price")
+                change = data.get("change")
+                percent = data.get("percent")
+                
+                if price is not None:
+                    # 涨跌幅标记
+                    if change and change > 0:
+                        trend = "📈"
+                    elif change and change < 0:
+                        trend = "📉"
+                    else:
+                        trend = "➖"
+                    
+                    change_str = ""
+                    if change is not None:
+                        change_str = f"{change:+.2f}"
+                    if percent is not None:
+                        change_str += f" ({percent:+.2f}%)"
+                    
+                    lines.append(f"{trend} {name}({symbol}): ¥{price:.2f} {change_str}")
+            lines.append("")
+        
+        # 期货数据
+        if futures_quotes:
+            lines.append("【期货市场】")
+            for symbol, data in sorted(futures_quotes.items(), key=lambda x: x[0]):
+                name = data.get("name", symbol)
+                price = data.get("price")
+                
+                if price is not None:
+                    lines.append(f"• {name}({symbol}): {price:.2f}")
+        
+        # 发送消息
+        message = "\n".join(lines)
+        print(f"准备推送飞书消息，长度：{len(message)}")
+        ok = self.send_text(message)
+        if ok:
+            print("飞书推送成功✅")
+        else:
+            print("飞书推送失败❌")
+        
+        return ok
+
+    def set_push_interval(self, seconds: int) -> None:
+        """设置推送间隔（秒）"""
+        self.push_interval = seconds
+
+    def get_next_push_time(self) -> str:
+        """获取下次推送时间"""
+        next_ts = self.last_push_ts + self.push_interval
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(next_ts))
 
