@@ -15,7 +15,7 @@ def test_send_text():
     print("=" * 50)
 
     webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/e04d427b-1163-45c9-8d6b-a5559b013e82"
-    notifier = FeishuNotifier(webhook)674fd0a6524a46b7bad5d3fa505d
+    notifier = FeishuNotifier(webhook)
 
     test_message = "👋 你好，这是一条测试消息！\n时间：" + time.strftime("%Y-%m-%d %H:%M:%S")
 
