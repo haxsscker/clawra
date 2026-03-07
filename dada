@@ -1,143 +1,176 @@
-import json
 import os
+import sys
 import time
-import urllib.request
-from typing import Dict, List, Optional, Any
+
+# 添加项目路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from app.notifier.feishu import FeishuNotifier
 
 
-class FeishuNotifier:
-    def __init__(self, webhook: Optional[str]) -> None:
-        self.webhook = webhook
-        self.last_push_ts = 0
-        self.push_interval = 60  # 推送间隔（秒）
+def test_send_text():
+    """测试发送文本消息"""
+    print("=" * 50)
+    print("测试 1: 发送简单文本消息")
+    print("=" * 50)
 
-    def send_text(self, text: str) -> bool:
-        if not self.webhook:
-            print("Webhook 未设置")
-            return False
-        
-        data = {
-            "msg_type": "text",
-            "content": {"text": text},
+    webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/e04d427b-1163-45c9-8d6b-a5559b013e82"
+    notifier = FeishuNotifier(webhook)
+
+    test_message = "👋 你好，这是一条测试消息！\n时间：" + time.strftime("%Y-%m-%d %H:%M:%S")
+
+    print(f"发送消息：{test_message}")
+    result = notifier.send_text(test_message)
+    print(f"发送结果：{'✅ 成功' if result else '❌ 失败'}")
+    print()
+
+    return result
+
+
+def test_send_market_report():
+    """测试发送市场行情报告（模拟数据）"""
+    print("=" * 50)
+    print("测试 2: 发送市场行情报告（模拟数据）")
+    print("=" * 50)
+
+    webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/e04d427b-1163-45c9-8d6b-a5559b013e82"
+    notifier = FeishuNotifier(webhook)
+
+    # 模拟股票数据
+    stocks_quotes = {
+        "sh600000": {
+            "name": "浦发银行",
+            "symbol": "sh600000",
+            "price": 9.89,
+            "change": 0.11,
+            "percent": 1.12,
+            "currency": "CNY"
+        },
+        "sh601398": {
+            "name": "工商银行",
+            "symbol": "sh601398",
+            "price": 7.11,
+            "change": -0.05,
+            "percent": -0.70,
+            "currency": "CNY"
+        },
+        "sz000001": {
+            "name": "平安银行",
+            "symbol": "sz000001",
+            "price": 10.25,
+            "change": 0.15,
+            "percent": 1.48,
+            "currency": "CNY"
         }
-        body = json.dumps(data).encode("utf-8")
-        
-        req = urllib.request.Request(
-            self.webhook,
-            data=body,
-            headers={
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
-        
-        try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                response_data = resp.read()
-                print(f"飞书响应状态码：{resp.status}")
-                print(f"飞书响应内容：{response_data}")
-                
-                # 检查响应内容
-                try:
-                    resp_json = json.loads(response_data)
-                    if resp_json.get("code") == 0 or resp_json.get("StatusCode") == 0:
-                        return True
-                    else:
-                        print(f"飞书返回错误：{resp_json}")
-                        return False
-                except:
-                    return resp.status == 200
-                    
-        except urllib.error.HTTPError as e:
-            print(f"HTTP 错误：{e.code}")
-            print(f"错误信息：{e.reason}")
-            print(f"响应头：{e.headers}")
-            
-            # 读取错误响应体
-            try:
-                error_body = e.read().decode('utf-8')
-                print(f"错误响应体：{error_body}")
-            except:
-                pass
-            
-            return False
-        except Exception as e:
-            print(f"发送失败：{e}")
-            import traceback
-            traceback.print_exc()
-            return False
+    }
 
-    def send_market_report(self, futures_quotes: Dict[str, Dict], stocks_quotes: Dict[str, Dict]) -> bool:
-        """发送市场行情报告到飞书"""
-        current_ts = int(time.time())
-        
-        # 检查是否到了推送时间
-        if current_ts - self.last_push_ts < self.push_interval:
-            print(f"距离上次推送不足 {self.push_interval} 秒，跳过")
-            return False
-        
-        self.last_push_ts = current_ts
-        
-        # 构建推送消息
-        lines = []
-        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(current_ts))
-        lines.append(f"📊 行情监控播报 ({current_time})")
-        lines.append("")
-        
-        # 股票数据
-        if stocks_quotes:
-            lines.append("【A 股行情】")
-            for symbol, data in sorted(stocks_quotes.items(), key=lambda x: x[0]):
-                name = data.get("name", symbol)
-                price = data.get("price")
-                change = data.get("change")
-                percent = data.get("percent")
-                
-                if price is not None:
-                    # 涨跌幅标记
-                    if change and change > 0:
-                        trend = "📈"
-                    elif change and change < 0:
-                        trend = "📉"
-                    else:
-                        trend = "➖"
-                    
-                    change_str = ""
-                    if change is not None:
-                        change_str = f"{change:+.2f}"
-                    if percent is not None:
-                        change_str += f" ({percent:+.2f}%)"
-                    
-                    lines.append(f"{trend} {name}({symbol}): ¥{price:.2f} {change_str}")
-            lines.append("")
-        
-        # 期货数据
-        if futures_quotes:
-            lines.append("【期货市场】")
-            for symbol, data in sorted(futures_quotes.items(), key=lambda x: x[0]):
-                name = data.get("name", symbol)
-                price = data.get("price")
-                
-                if price is not None:
-                    lines.append(f"• {name}({symbol}): {price:.2f}")
-        
-        # 发送消息
-        message = "\n".join(lines)
-        print(f"准备推送飞书消息，长度：{len(message)}")
-        ok = self.send_text(message)
-        if ok:
-            print("飞书推送成功✅")
-        else:
-            print("飞书推送失败❌")
-        
-        return ok
+    # 模拟期货数据
+    futures_quotes = {
+        "nf_RB0": {
+            "name": "螺纹钢主连",
+            "symbol": "nf_RB0",
+            "price": 4500.50,
+            "currency": "CNY"
+        },
+        "nf_AG0": {
+            "name": "白银主连",
+            "symbol": "nf_AG0",
+            "price": 21735.00,
+            "currency": "CNY"
+        },
+        "nf_AU0": {
+            "name": "上期所黄金主连",
+            "symbol": "nf_AU0",
+            "price": 625.80,
+            "currency": "CNY"
+        }
+    }
 
-    def set_push_interval(self, seconds: int) -> None:
-        """设置推送间隔（秒）"""
-        self.push_interval = seconds
+    print("模拟数据:")
+    print("\n股票数据:")
+    for symbol, data in stocks_quotes.items():
+        print(f"  {data['name']}({symbol}): ¥{data['price']} ({data['change']:+.2f}, {data['percent']:+.2f}%)")
 
-    def get_next_push_time(self) -> str:
-        """获取下次推送时间"""
-        next_ts = self.last_push_ts + self.push_interval
-        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(next_ts))
+    print("\n期货数据:")
+    for symbol, data in futures_quotes.items():
+        print(f"  {data['name']}({symbol}): {data['price']}")
 
+    print("\n发送行情报告...")
+    # 重置推送时间，确保能立即推送
+    notifier.last_push_ts = 0
+    result = notifier.send_market_report(futures_quotes, stocks_quotes)
+    print(f"发送结果：{'✅ 成功' if result else '❌ 失败'}")
+    print()
+
+    return result
+
+
+def test_actual_data():
+    """测试实际运行中的数据推送"""
+    print("=" * 50)
+    print("测试 3: 等待服务运行时的实际数据")
+    print("=" * 50)
+
+    print("这个测试需要在服务运行时执行")
+    print("请先启动服务：python run.py")
+    print("然后等待 1 分钟，观察飞书是否收到消息")
+    print()
+
+    # 检查服务是否在运行
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://localhost:8000/api/health")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            health = resp.read().decode('utf-8')
+            print(f"✅ 服务正在运行")
+            print(f"健康状态：{health}")
+    except Exception as e:
+        print(f"⚠️  服务未运行或无法连接：{e}")
+        print("请先启动服务后再测试")
+        return False
+
+    return True
+
+
+if __name__ == "__main__":
+    print("\n🤖 飞书推送测试开始\n")
+
+    # 测试 1: 发送简单消息
+    test1_result = test_send_text()
+
+    # 等待 2 秒
+    time.sleep(2)
+
+    # 测试 2: 发送模拟行情
+    test2_result = test_send_market_report()
+
+    # 等待 2 秒
+    time.sleep(2)
+
+    # 测试 3: 检查服务状态
+    test3_result = test_actual_data()
+
+    # 总结
+    print("=" * 50)
+    print("测试总结")
+    print("=" * 50)
+    print(f"测试 1 (简单消息): {'✅ 通过' if test1_result else '❌ 失败'}")
+    print(f"测试 2 (模拟行情): {'✅ 通过' if test2_result else '❌ 失败'}")
+    print(f"测试 3 (服务检查): {'✅ 通过' if test3_result else '❌ 失败'}")
+
+    if test1_result and test2_result:
+        print("\n🎉 基础测试通过！请检查飞书是否收到消息。")
+        print("\n如果没收到消息，可能原因：")
+        print("  1. Webhook 地址无效或已过期")
+        print("  2. 飞书机器人已被禁用")
+        print("  3. 网络连接问题")
+        print("  4. 飞书 API 限制")
+        print("\n建议：")
+        print("  1. 重新创建飞书机器人获取新的 Webhook")
+        print("  2. 检查机器人是否在群里启用")
+        print("  3. 手动测试 Webhook（用 curl 命令）")
+    else:
+        print("\n⚠️  部分测试失败，请检查：")
+        print("  1. 网络连接是否正常")
+        print("  2. Webhook 地址是否正确")
+        print("  3. 飞书机器人是否已启用")
