@@ -40,7 +40,7 @@ If you prefer manual setup:
 
 ### 1. Get API Key
 
-Visit [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys) and create an API key.
+Visit [fal.ai/dashboard/keys](https://fal.ai/dashboard/keys) and create an API key.661d3f3f-4968-4343-aeb2-0edb24737755
 
 ### 2. Clone the Skill
 
