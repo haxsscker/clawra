@@ -1,0 +1,273 @@
+#!/usr/bin/swift
+// get_location_fixed.swift
+// 修复: kCLErrorDomain error 1 + macOS 26 弃用警告
+
+import CoreLocation
+import Foundation
+
+// ── 全局 Semaphore 防止脚本提前退出 ──────────────────────
+let semaphore = DispatchSemaphore(value: 0)
+
+// ── 位置管理器 ────────────────────────────────────────────
+class LocationFetcher: NSObject, CLLocationManagerDelegate {
+    
+    let manager = CLLocationManager()
+    var retryCount = 0
+    let maxRetry   = 3
+    
+    override init() {
+        super.init()
+        manager.delegate         = self
+        manager.desiredAccuracy  = kCLLocationAccuracyBest
+        // 关键: 距离过滤设为 0，任何变化都上报
+        manager.distanceFilter   = kCLDistanceFilterNone
+    }
+    
+    func start() {
+        let status = manager.authorizationStatus
+        print("📋 当前权限状态: \(describeAuthStatus(status))")
+        
+        switch status {
+        case .notDetermined:
+            print("⏳ 正在请求位置权限...")
+            manager.requestWhenInUseAuthorization()
+            // 等待权限回调后自动启动
+            
+        case .authorizedAlways, .authorized:
+            startUpdating()
+            
+        case .denied, .restricted:
+            printPermissionHelp()
+            semaphore.signal()
+            
+        @unknown default:
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+    
+    func startUpdating() {
+        print("🔍 开始获取位置 (尝试 \(retryCount + 1)/\(maxRetry))...")
+        // 用 startUpdatingLocation 替代 requestLocation
+        // requestLocation 在脚本环境下容易超时失败
+        manager.startUpdatingLocation()
+        
+        // 设置超时保险
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+            if self.retryCount < self.maxRetry - 1 {
+                self.retryCount += 1
+                self.manager.stopUpdatingLocation()
+                print("⚠️  超时，正在重试...")
+                self.startUpdating()
+            } else {
+                print("❌ 多次超时，请检查权限或网络")
+                self.printPermissionHelp()
+                semaphore.signal()
+            }
+        }
+    }
+    
+    // ── 权限变化回调 ──────────────────────────────────────
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        print("🔄 权限变化: \(describeAuthStatus(status))")
+        
+        switch status {
+        case .authorizedAlways, .authorized:
+            startUpdating()
+        case .denied, .restricted:
+            printPermissionHelp()
+            semaphore.signal()
+        default:
+            break
+        }
+    }
+    
+    // ── 获取位置成功 ──────────────────────────────────────
+    func locationManager(_ manager: CLLocationManager,
+                         didUpdateLocations locations: [CLLocation]) {
+        
+        // 过滤掉精度太差的结果（>500米认为无效）
+        guard let location = locations.last,
+              location.horizontalAccuracy > 0,
+              location.horizontalAccuracy < 500 else {
+            print("⚠️  位置精度不足，继续等待...")
+            return
+        }
+        
+        manager.stopUpdatingLocation()
+        
+        let lat = location.coordinate.latitude
+        let lon = location.coordinate.longitude
+        
+        printLocation(location)
+        reverseGeocode(location: location) {
+            semaphore.signal()
+        }
+    }
+    
+    // ── 错误回调 ──────────────────────────────────────────
+    func locationManager(_ manager: CLLocationManager,
+                         didFailWithError error: Error) {
+        let clError = error as? CLError
+        
+        switch clError?.code {
+        case .locationUnknown:
+            // error 1: 位置暂时未知，继续等待（不是致命错误）
+            print("⏳ 位置信息获取中，请稍候...")
+            // 不停止，继续等待下一次回调
+            
+        case .denied:
+            print("❌ 位置权限被拒绝")
+            printPermissionHelp()
+            manager.stopUpdatingLocation()
+            semaphore.signal()
+            
+        case .network:
+            print("❌ 网络错误，无法获取位置")
+            manager.stopUpdatingLocation()
+            semaphore.signal()
+            
+        default:
+            print("❌ 未知错误: \(error.localizedDescription) (code: \(clError?.code.rawValue ?? -1))")
+            if retryCount < maxRetry - 1 {
+                retryCount += 1
+                manager.stopUpdatingLocation()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    self.startUpdating()
+                }
+            } else {
+                semaphore.signal()
+            }
+        }
+    }
+    
+    // ── 打印位置信息 ──────────────────────────────────────
+    func printLocation(_ location: CLLocation) {
+        let lat = location.coordinate.latitude
+        let lon = location.coordinate.longitude
+        
+        print("""
+        
+        ╔══════════════════════════════════════╗
+        ║         📍 设备当前位置               ║
+        ╠══════════════════════════════════════╣
+        ║ 纬度:    \(String(format: "%-28.6f", lat))║
+        ║ 经度:    \(String(format: "%-28.6f", lon))║
+        ║ 海拔:    \(String(format: "%-24.1f", location.altitude)) 米    ║
+        ║ 精确度:  ±\(String(format: "%-23.1f", location.horizontalAccuracy)) 米    ║
+        ╠══════════════════════════════════════╣
+        """)
+        
+        print("║ Apple 地图:                          ║")
+        print("║ https://maps.apple.com/?ll=\(lat),\(lon)")
+        print("║")
+        print("║ Google 地图:                         ║")
+        print("║ https://www.google.com/maps?q=\(lat),\(lon)")
+        print("╚══════════════════════════════════════╝")
+    }
+    
+    // ── 反向地理编码（兼容新旧 API）─────────────────────
+    func reverseGeocode(location: CLLocation, completion: @escaping () -> Void) {
+        
+        // macOS 26+ 使用 MapKit geocoding（如果可用）
+        // 兼容旧版本仍用 CLGeocoder（加 @available 消除警告）
+        if #available(macOS 26.0, *) {
+            // 用 HTTP API 作为替代（不依赖弃用 API）
+            reverseGeocodeViaAPI(
+                lat: location.coordinate.latitude,
+                lon: location.coordinate.longitude,
+                completion: completion
+            )
+        } else {
+            reverseGeocodeViaCorelLocation(location: location, completion: completion)
+        }
+    }
+    
+    // 旧版：CLGeocoder（macOS 25 及以下）
+    @available(macOS, deprecated: 26.0)
+    func reverseGeocodeViaCorelLocation(location: CLLocation,
+                                         completion: @escaping () -> Void) {
+        let geocoder = CLGeocoder()
+        geocoder.reverseGeocodeLocation(location) { placemarks, error in
+            defer { completion() }
+            guard let place = placemarks?.first, error == nil else {
+                print("地址:    无法解析")
+                return
+            }
+            self.printAddress(place)
+        }
+    }
+    
+    // 新版：使用 nominatim 免费 API（OpenStreetMap）
+    func reverseGeocodeViaAPI(lat: Double, lon: Double,
+                               completion: @escaping () -> Void) {
+        let urlStr = "https://nominatim.openstreetmap.org/reverse?lat=\(lat)&lon=\(lon)&format=json&accept-language=zh"
+        guard let url = URL(string: urlStr) else { completion(); return }
+        
+        var request = URLRequest(url: url)
+        // nominatim 要求设置 User-Agent
+        request.setValue("FindMyMac-Script/1.0", forHTTPHeaderField: "User-Agent")
+        
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            defer { completion() }
+            
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let address = json["display_name"] as? String else {
+                print("🏠 地址:  解析失败（网络问题）")
+                return
+            }
+            print("🏠 地址:  \(address)")
+        }.resume()
+    }
+    
+    // ── 打印地址 ──────────────────────────────────────────
+    func printAddress(_ place: CLPlacemark) {
+        let parts = [
+            place.country,
+            place.administrativeArea,
+            place.locality,
+            place.subLocality,
+            place.thoroughfare,
+            place.subThoroughfare
+        ].compactMap { $0 }
+        print("🏠 地址:  \(parts.joined(separator: " "))")
+    }
+    
+    // ── 权限说明 ──────────────────────────────────────────
+    func printPermissionHelp() {
+        print("""
+        
+        ⚠️  请按以下步骤开启位置权限:
+        1. 打开「系统设置」
+        2. 隐私与安全性 → 位置服务
+        3. 找到「终端」或「iTerm」
+        4. 选择「使用 App 期间」
+        5. 重新运行此脚本
+        
+        或执行: open "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
+        """)
+    }
+    
+    // ── 权限状态描述 ──────────────────────────────────────
+    func describeAuthStatus(_ status: CLAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined:    return "未决定"
+        case .restricted:       return "受限制"
+        case .denied:           return "已拒绝"
+        case .authorizedAlways: return "始终允许"
+        case .authorized:       return "使用期间允许"
+        @unknown default:       return "未知(\(status.rawValue))"
+        }
+    }
+}
+
+// ── 运行 ──────────────────────────────────────────────────
+let fetcher = LocationFetcher()
+fetcher.start()
+
+// 一键打开权限设置的快捷方式（如需要）
+// NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices")!)
+
+semaphore.wait()  // 等待获取完成
+print("\n✅ 完成")
