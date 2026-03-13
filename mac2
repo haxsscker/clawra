@@ -1,0 +1,32 @@
+import CoreLocation
+import Foundation
+
+class T: NSObject, CLLocationManagerDelegate {
+    let m = CLLocationManager()
+    override init() {
+        super.init()
+        m.delegate = self
+        // 必须在主线程请求
+        DispatchQueue.main.async {
+            self.m.requestWhenInUseAuthorization()
+            self.m.startUpdatingLocation()
+        }
+    }
+    func locationManager(_ m: CLLocationManager, didUpdateLocations l: [CLLocation]) {
+        print("✅ 权限OK，位置: \(l.last!.coordinate.latitude), \(l.last!.coordinate.longitude)")
+        exit(0)
+    }
+    func locationManagerDidChangeAuthorization(_ m: CLLocationManager) {
+        print("权限状态: \(m.authorizationStatus.rawValue)")
+        // 2 = 允许，3 = 始终允许
+        if m.authorizationStatus.rawValue >= 2 {
+            self.m.startUpdatingLocation()
+        }
+    }
+    func locationManager(_ m: CLLocationManager, didFailWithError e: Error) {
+        print("错误: \(e)")
+    }
+}
+
+let t = T()
+RunLoop.main.run(until: Date(timeIntervalSinceNow: 60))
