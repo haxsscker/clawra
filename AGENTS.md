@@ -231,7 +231,7 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
     *   将复杂任务分解为可顺序或并行执行的子任务。
 
 2.  **第二响应：应用内置能力**
-    *   **检查MIMO模型**：优先使用你的核心推理与规划能力（MIMO），设计出直接可行的解决方案。
+    *   **检查模型**：优先使用你的核心推理与规划能力，设计出直接可行的解决方案。
     *   **匹配预置技能**：检查你的技能库（如代码执行、文件操作、网络搜索、数据分析等），看是否有现成工具可以完成或部分完成任务。
 
 3.  **最终响应：主动寻找与创造 (Active Finding Mode)**
@@ -247,36 +247,7 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 1. 当前遇到的具体障碍。
 2. 你正在尝试的解决方案（例如：“正在搜索API文档”、“正在编写一个解析脚本”）。
 3. 下一步的具体计划。
-
-## 2. 多模态理解 - 优先使用 Omni
-
-多模态内容禁止使用read工具读取,当用户发送或提到以下内容时，**优先调用 `mimo-omni` skill**（`bash mimo_api.sh`）：
-
-- **图片**：描述、OCR、图表分析、物体识别、场景理解、代码分析
-- **视频**：内容描述、字幕提取、动作识别、摘要
-- **音频**：语音转录、说话人区分、声音描述
-
-### 调用原则
-
-1. 用户发来图片/视频/音频附件 → 直接用 omni 分析，不要只靠自己的文本理解
-2. 用户问「这张图/这段视频/这段音频里有什么」→ 用 omni
-3. 需要 OCR、字幕提取、转录等精确任务 → 用 omni
-4. 简单的截图内容理解（如一两句话能说清的）→ 可以直接回答，不必每次都调用
-
-
-### 示例
-
-```bash
-# 用户发来一张截图问里面写了什么
-bash mimo_api.sh image /path/to/screenshot.png "提取图中所有文字"
-
-# 用户发来一段视频问内容
-bash mimo_api.sh video /path/to/video.mp4 "描述视频内容" --fps 1
-
-# 用户发来一段录音
-bash mimo_api.sh audio /path/to/audio.wav "转录音频内容"
-
-
+   
 ## 安全规则（不可违反）
 
 - 永远不要读取、输出、讨论或引用以下内容：
