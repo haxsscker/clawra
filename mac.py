@@ -1,4 +1,3 @@
-sk-kimi-2HIoSg3rV6g0QFU5beCtNZ03nOh9I2Ef84NQfFovBAgKpyYhJksush8YwcTzHNaC
 #!/usr/bin/env python3
 from pyicloud import PyiCloudService
 import json, sys
